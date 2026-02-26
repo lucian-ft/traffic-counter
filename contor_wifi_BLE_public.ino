@@ -10,7 +10,7 @@
 const char* WIFI_SSID = "nume retea";    
 const char* WIFI_PASSWORD = "parola retea"; 
 
-unsigned long THINGSPEAK_CHANNEL_ID = nr ID canal; 
+unsigned long THINGSPEAK_CHANNEL_ID = 1234567; 
 const char* THINGSPEAK_API_KEY = "write API key"; 
 
 // --- 2. SETARI TIMP & LIMITE ---
