@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contor Trafic IoT + GPS</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 15px; background-color: #f0f2f5; }
+        h2 { color: #333; margin-bottom: 10px; font-size: 22px; }
+        
+        #gpsStatus { font-size: 13px; margin-bottom: 15px; padding: 10px; border-radius: 8px; background-color: #ffdddd; color: #d9534f; font-weight: bold; }
+        .gps-active { background-color: #ddffdd !important; color: #28a745 !important; }
+
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card h3 { margin-top: 0; color: #444; font-size: 20px; }
+
+        .btn-grup { display: flex; justify-content: space-between; gap: 10px; }
+        .btn { flex: 1; padding: 20px 5px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); touch-action: manipulation; }
+        .btn:active { transform: scale(0.95); }
+
+        .btn-p-stanga { background-color: #007BFF; }
+        .btn-p-dreapta { background-color: #0056b3; }
+        .btn-b-stanga { background-color: #FF8C00; }
+        .btn-b-dreapta { background-color: #cc7000; }
+        
+        .btn-descarca { background-color: #28a745; width: 100%; padding: 20px; font-size: 18px; margin-top: 10px; }
+        .stats { font-size: 16px; margin-top: 10px; color: #555; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <h2>Contor Trafic Teren</h2>
+    <div id="gpsStatus">⏳ Se caută semnal GPS...</div>
+    
+    <div class="card">
+        <h3>🚶‍♂️ Pietoni</h3>
+        <div class="btn-grup">
+            <button class="btn btn-p-stanga" onclick="inregistreaza('Pieton', 'stanga')">Din Stânga ➡️</button>
+            <button class="btn btn-p-dreapta" onclick="inregistreaza('Pieton', 'dreapta')">⬅️ Din Dreapta</button>
+        </div>
+        <div class="stats" id="countPieton">Total: 0 (⬅️ 0 | 0 ➡️)</div>
+    </div>
+
+    <div class="card">
+        <h3>🚴 Bicicliști</h3>
+        <div class="btn-grup">
+            <button class="btn btn-b-stanga" onclick="inregistreaza('Biciclist', 'stanga')">Din Stânga ➡️</button>
+            <button class="btn btn-b-dreapta" onclick="inregistreaza('Biciclist', 'dreapta')">⬅️ Din Dreapta</button>
+        </div>
+        <div class="stats" id="countBiciclist">Total: 0 (⬅️ 0 | 0 ➡️)</div>
+    </div>
+
+    <button class="btn btn-descarca" onclick="descarcaCSV()">💾 Descarcă Fișierul (CSV)</button>
+
+    <script>
+        let inregistrari = [["Tip_Participant", "Sens_Deplasare", "Timestamp_ISO", "Ora_Locala", "Latitudine", "Longitudine"]];
+        
+        // Obiectul care tine minte scorul exact
+        let stats = {
+            'Pieton': { stanga: 0, dreapta: 0 },
+            'Biciclist': { stanga: 0, dreapta: 0 }
+        };
+
+        let curentLat = "N/A";
+        let curentLon = "N/A";
+
+        // Activare GPS
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                function(pozitie) {
+                    curentLat = pozitie.coords.latitude.toFixed(6);
+                    curentLon = pozitie.coords.longitude.toFixed(6);
+                    let statusDiv = document.getElementById("gpsStatus");
+                    statusDiv.innerHTML = "📍 GPS Activ | Lat: " + curentLat + " | Lon: " + curentLon;
+                    statusDiv.classList.add("gps-active");
+                },
+                function(eroare) {
+                    document.getElementById("gpsStatus").innerHTML = "⚠️ Eroare GPS: Permiteți accesul locației.";
+                    document.getElementById("gpsStatus").classList.remove("gps-active");
+                },
+                { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+            );
+        }
+
+        function inregistreaza(tip, buton_apasat) {
+            let acum = new Date();
+            let isoTime = acum.toISOString(); 
+            let localTime = acum.toLocaleTimeString(); 
+
+            // Traducem in text clar pentru fisierul Excel
+            let sens_export = (buton_apasat === 'stanga') ? "Spre Dreapta" : "Spre Stanga";
+
+            // Salvam datele in memorie
+            inregistrari.push([tip, sens_export, isoTime, localTime, curentLat, curentLon]);
+
+            // Actualizam logica de contorizare de pe ecran
+            stats[tip][buton_apasat]++;
+            let total = stats[tip].stanga + stats[tip].dreapta;
+            
+            // Desenam noile valori pe ecran
+            if(tip === 'Pieton') {
+                document.getElementById('countPieton').innerText = 
+                    `Total: ${total} (⬅️ ${stats[tip].dreapta} | ${stats[tip].stanga} ➡️)`;
+            } else {
+                document.getElementById('countBiciclist').innerText = 
+                    `Total: ${total} (⬅️ ${stats[tip].dreapta} | ${stats[tip].stanga} ➡️)`;
+            }
+            
+            if (navigator.vibrate) navigator.vibrate(50); 
+        }
+
+        function descarcaCSV() {
+            if(inregistrari.length === 1) {
+                alert("Nu ai inregistrat încă niciun participant!");
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8," 
+                + inregistrari.map(e => e.join(";")).join("\n");
+            
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            let timestampName = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 16);
+            link.setAttribute("download", `trafic_${timestampName}.csv`);
+            
+            document.body.appendChild(link); 
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+
+</body>
+</html>
